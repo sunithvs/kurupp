@@ -190,8 +190,26 @@ document.getElementById("poster-close-btn").addEventListener("click", () => {
   posterModal.hidden = true;
 });
 
+function breakLongWord(ctx, word, maxWidth) {
+  // hard-break a word that alone exceeds the line width
+  const parts = [];
+  let piece = "";
+  for (const ch of word) {
+    if (ctx.measureText(piece + ch).width > maxWidth && piece) {
+      parts.push(piece);
+      piece = ch;
+    } else {
+      piece += ch;
+    }
+  }
+  if (piece) parts.push(piece);
+  return parts;
+}
+
 function wrapText(ctx, text, maxWidth) {
-  const words = text.split(/\s+/);
+  const words = text.split(/\s+/).flatMap((w) =>
+    ctx.measureText(w).width > maxWidth ? breakLongWord(ctx, w, maxWidth) : [w]
+  );
   const lines = [];
   let line = "";
   for (const word of words) {
@@ -205,6 +223,17 @@ function wrapText(ctx, text, maxWidth) {
   }
   if (line) lines.push(line);
   return lines;
+}
+
+function clampLines(ctx, lines, maxLines, maxWidth) {
+  if (lines.length <= maxLines) return lines;
+  const kept = lines.slice(0, maxLines);
+  let last = kept[maxLines - 1];
+  while (last && ctx.measureText(last + "…").width > maxWidth) {
+    last = last.slice(0, -1).trimEnd();
+  }
+  kept[maxLines - 1] = last + "…";
+  return kept;
 }
 
 function loadImage(src) {
@@ -315,10 +344,11 @@ async function makePoster(p, number) {
   ctx.lineWidth = 2;
   ctx.strokeRect(px - 12, py - 12, P + 24, P + 24);
 
-  // details quote + meta
+  // details quote + meta, clamped with ellipsis so nothing escapes the frame
   let y = py + P + 75;
   if (p.details) {
-    for (const line of measureLines(`"${p.details}"`, "italic 400 40px", 860).slice(0, 3)) {
+    const quoteLines = clampLines(ctx, measureLines(`"${p.details}"`, "italic 400 40px", 860), 3, 860);
+    for (const line of quoteLines) {
       text(line, W / 2, y, "italic 400 40px", "#1e1a14");
       y += 56;
     }
@@ -330,10 +360,9 @@ async function makePoster(p, number) {
   if (p.reporter) metaLines.push(`സാക്ഷി: ${p.reporter}`);
   metaLines.push(date);
   for (const line of metaLines) {
-    for (const sub of measureLines(line, "600 40px", 860).slice(0, 1)) {
-      text(sub, W / 2, y, "600 40px", "#4a4238");
-      y += 52;
-    }
+    const [sub] = clampLines(ctx, measureLines(line, "600 40px", 860), 1, 860);
+    text(sub, W / 2, y, "600 40px", "#4a4238");
+    y += 52;
   }
 
   // footer with site link
