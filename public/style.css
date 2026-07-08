@@ -105,9 +105,41 @@ body {
 
 /* ---------- Headline ---------- */
 .headline-block {
+  display: flex;
+  align-items: center;
+  gap: 24px;
   text-align: center;
   padding: 22px 8px 18px;
   border-bottom: 1px solid var(--rule);
+}
+
+.headline-text { flex: 1; }
+
+.headline-photo {
+  flex: 0 0 clamp(160px, 24vw, 250px);
+  margin: 0;
+}
+
+.headline-photo img {
+  width: 100%;
+  display: block;
+  border: 2px solid var(--rule);
+  outline: 1px solid var(--ink-soft);
+  outline-offset: 3px;
+  filter: sepia(.4) contrast(1.05);
+  box-shadow: 3px 3px 0 rgba(0,0,0,.2);
+}
+
+.headline-photo figcaption {
+  font-size: .72rem;
+  color: var(--ink-soft);
+  margin-top: 7px;
+  font-style: italic;
+}
+
+@media (max-width: 620px) {
+  .headline-block { flex-direction: column; gap: 16px; }
+  .headline-photo { flex-basis: auto; width: min(240px, 70vw); }
 }
 
 .headline {
