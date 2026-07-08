@@ -116,17 +116,36 @@ zoomSlider.addEventListener("input", () => {
   render();
 });
 
-// ---------- Crop + upload ----------
-function cropToBlob() {
+// ---------- Crop + compress + upload ----------
+const TARGET_BYTES = 300 * 1024; // final upload stays under ~300 KB
+
+function drawCrop(size) {
   const V = viewportSize();
-  const OUT = 800;
   const canvas = document.createElement("canvas");
-  canvas.width = OUT;
-  canvas.height = OUT;
+  canvas.width = size;
+  canvas.height = size;
   const ctx = canvas.getContext("2d");
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(cropImg, -x / scale, -y / scale, V / scale, V / scale, 0, 0, OUT, OUT);
-  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.88));
+  ctx.drawImage(cropImg, -x / scale, -y / scale, V / scale, V / scale, 0, 0, size, size);
+  return canvas;
+}
+
+function toBlob(canvas, quality) {
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+}
+
+async function cropToBlob() {
+  // walk down quality, then resolution, until under target size
+  const attempts = [
+    [800, 0.88], [800, 0.75], [800, 0.6],
+    [640, 0.6], [512, 0.55],
+  ];
+  let blob = null;
+  for (const [size, quality] of attempts) {
+    blob = await toBlob(drawCrop(size), quality);
+    if (blob && blob.size <= TARGET_BYTES) return blob;
+  }
+  return blob; // worst case: 512px @ 0.55, essentially always < 300 KB
 }
 
 publishBtn.addEventListener("click", async () => {
@@ -135,6 +154,7 @@ publishBtn.addEventListener("click", async () => {
   statusEl.textContent = "അച്ചടിക്കുന്നു…";
   try {
     const blob = await cropToBlob();
+    statusEl.textContent = `അച്ചടിക്കുന്നു… (${Math.round(blob.size / 1024)} KB)`;
     const form = new FormData();
     form.append("photo", blob, "kurup.jpg");
     form.append("reporter", document.getElementById("reporter").value);
