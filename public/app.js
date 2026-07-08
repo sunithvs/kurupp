@@ -216,14 +216,63 @@ function loadImage(src) {
   });
 }
 
-async function makePoster(p, number) {
+// manual sepia so iOS Safari (no canvas filter support) renders identically
+function sepiaSquare(img, size) {
+  const c = document.createElement("canvas");
+  c.width = size;
+  c.height = size;
+  const g = c.getContext("2d");
+  g.drawImage(img, 0, 0, size, size);
+  const d = g.getImageData(0, 0, size, size);
+  const px = d.data;
+  for (let i = 0; i < px.length; i += 4) {
+    const r = px[i], gr = px[i + 1], b = px[i + 2];
+    px[i] = Math.min(255, r * 0.72 + gr * 0.55 + b * 0.14);
+    px[i + 1] = Math.min(255, r * 0.42 + gr * 0.62 + b * 0.12);
+    px[i + 2] = Math.min(255, r * 0.28 + gr * 0.40 + b * 0.33);
+  }
+  g.putImageData(d, 0, 0);
+  return c;
+}
+
+const POSTER_FONT = '"Noto Serif Malayalam"';
+
+async function ensurePosterFonts() {
+  const styles = ["800 64px", "800 52px", "800 76px", "italic 400 44px", "600 44px", "600 40px", "800 54px"];
+  try {
+    await Promise.all(styles.map((s) => document.fonts.load(`${s} ${POSTER_FONT}`, "കുറുപ്പ് ഉണ്ടോ?")));
+  } catch { /* fall back to whatever is available */ }
   await document.fonts.ready;
+}
+
+async function makePoster(p, number) {
+  await ensurePosterFonts();
   const W = 1080, H = 1920;
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d");
-  const serif = '"Noto Serif Malayalam", serif';
+
+  // every text draw sets its full state; nothing depends on leftover ctx state
+  function text(str, x, y, font, color, align = "center") {
+    ctx.font = `${font} ${POSTER_FONT}, serif`;
+    ctx.fillStyle = color;
+    ctx.textAlign = align;
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(str, x, y);
+  }
+  function measureLines(str, font, maxWidth) {
+    ctx.font = `${font} ${POSTER_FONT}, serif`;
+    return wrapText(ctx, str, maxWidth);
+  }
+  function rule(y, weight) {
+    ctx.strokeStyle = "#2b251c";
+    ctx.lineWidth = weight;
+    ctx.beginPath();
+    ctx.moveTo(140, y);
+    ctx.lineTo(W - 140, y);
+    ctx.stroke();
+  }
 
   // aged paper background
   ctx.fillStyle = "#e8ddc4";
@@ -237,8 +286,9 @@ async function makePoster(p, number) {
     ctx.fillRect(0, 0, W, H);
   }
 
-  // double dashed frame
+  // double frame: solid outer, dashed inner
   ctx.strokeStyle = "#2b251c";
+  ctx.setLineDash([]);
   ctx.lineWidth = 5;
   ctx.strokeRect(45, 45, W - 90, H - 90);
   ctx.setLineDash([14, 10]);
@@ -246,31 +296,20 @@ async function makePoster(p, number) {
   ctx.strokeRect(72, 72, W - 144, H - 144);
   ctx.setLineDash([]);
 
-  ctx.textAlign = "center";
-
   // masthead
-  ctx.fillStyle = "#1e1a14";
-  ctx.font = `800 64px ${serif}`;
-  ctx.fillText("കുറുപ്പ് ഉണ്ടോ?", W / 2, 190);
-  ctx.strokeStyle = "#2b251c";
-  ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(140, 225); ctx.lineTo(W - 140, 225); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(140, 233); ctx.lineTo(W - 140, 233); ctx.stroke();
+  text("കുറുപ്പ് ഉണ്ടോ?", W / 2, 190, "800 64px", "#1e1a14");
+  rule(225, 3);
+  rule(233, 3);
 
   // evidence header
-  ctx.fillStyle = "#7a1f1f";
-  ctx.font = `800 52px ${serif}`;
-  ctx.fillText(`തെളിവ് നം. ${number}`, W / 2, 320);
-  ctx.fillStyle = "#1e1a14";
-  ctx.font = `800 76px ${serif}`;
-  ctx.fillText("ഇയാളെ കണ്ടിട്ടുണ്ടോ?", W / 2, 425);
+  text(`തെളിവ് നം. ${number}`, W / 2, 320, "800 52px", "#7a1f1f");
+  text("ഇയാളെ കണ്ടിട്ടുണ്ടോ?", W / 2, 425, "800 76px", "#1e1a14");
 
   // photo, sepia, framed
   const img = await loadImage("/img/" + encodeURIComponent(p.key));
   const P = 720, px = (W - P) / 2, py = 490;
-  ctx.filter = "sepia(.35) contrast(1.05)";
-  ctx.drawImage(img, px, py, P, P);
-  ctx.filter = "none";
+  ctx.drawImage(sepiaSquare(img, P), px, py);
+  ctx.strokeStyle = "#2b251c";
   ctx.lineWidth = 5;
   ctx.strokeRect(px, py, P, P);
   ctx.lineWidth = 2;
@@ -279,38 +318,28 @@ async function makePoster(p, number) {
   // details quote + meta
   let y = py + P + 105;
   if (p.details) {
-    ctx.fillStyle = "#1e1a14";
-    ctx.font = `italic 44px ${serif}`;
-    for (const line of wrapText(ctx, `"${p.details}"`, 840).slice(0, 4)) {
-      ctx.fillText(line, W / 2, y);
+    for (const line of measureLines(`"${p.details}"`, "italic 400 44px", 840).slice(0, 4)) {
+      text(line, W / 2, y, "italic 400 44px", "#1e1a14");
       y += 62;
     }
     y += 18;
   }
-  ctx.font = `600 44px ${serif}`;
-  ctx.fillStyle = "#4a4238";
   const date = new Date(p.uploaded).toLocaleDateString("ml-IN", { day: "numeric", month: "long", year: "numeric" });
   const metaLines = [];
   if (p.location) metaLines.push(`സ്ഥലം: ${p.location}`);
   if (p.reporter) metaLines.push(`സാക്ഷി: ${p.reporter}`);
   metaLines.push(date);
   for (const line of metaLines) {
-    for (const sub of wrapText(ctx, line, 840).slice(0, 2)) {
-      ctx.fillText(sub, W / 2, y);
+    for (const sub of measureLines(line, "600 44px", 840).slice(0, 2)) {
+      text(sub, W / 2, y, "600 44px", "#4a4238");
       y += 60;
     }
   }
 
   // footer with site link
-  ctx.strokeStyle = "#2b251c";
-  ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(140, H - 240); ctx.lineTo(W - 140, H - 240); ctx.stroke();
-  ctx.fillStyle = "#1e1a14";
-  ctx.font = `600 40px ${serif}`;
-  ctx.fillText("നിങ്ങളും കണ്ടോ? തെളിവ് സമർപ്പിക്കുക", W / 2, H - 165);
-  ctx.fillStyle = "#7a1f1f";
-  ctx.font = `800 54px ${serif}`;
-  ctx.fillText(SITE_LINK, W / 2, H - 95);
+  rule(H - 240, 3);
+  text("നിങ്ങളും കണ്ടോ? തെളിവ് സമർപ്പിക്കുക", W / 2, H - 165, "600 40px", "#1e1a14");
+  text(SITE_LINK, W / 2, H - 95, "800 54px", "#7a1f1f");
 
   return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
 }
