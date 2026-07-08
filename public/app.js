@@ -247,7 +247,7 @@ async function ensurePosterFonts() {
 
 async function makePoster(p, number) {
   await ensurePosterFonts();
-  const W = 1080, H = 1920;
+  const W = 1080, H = 1440;
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
@@ -297,17 +297,17 @@ async function makePoster(p, number) {
   ctx.setLineDash([]);
 
   // masthead
-  text("കുറുപ്പ് ഉണ്ടോ?", W / 2, 190, "800 64px", "#1e1a14");
-  rule(225, 3);
-  rule(233, 3);
+  text("കുറുപ്പ് ഉണ്ടോ?", W / 2, 150, "800 56px", "#1e1a14");
+  rule(182, 3);
+  rule(190, 3);
 
   // evidence header
-  text(`തെളിവ് നം. ${number}`, W / 2, 320, "800 52px", "#7a1f1f");
-  text("ഇയാളെ കണ്ടിട്ടുണ്ടോ?", W / 2, 425, "800 76px", "#1e1a14");
+  text(`തെളിവ് നം. ${number}`, W / 2, 262, "800 48px", "#7a1f1f");
+  text("ഇയാളെ കണ്ടിട്ടുണ്ടോ?", W / 2, 352, "800 64px", "#1e1a14");
 
   // photo, sepia, framed
   const img = await loadImage("/img/" + encodeURIComponent(p.key));
-  const P = 720, px = (W - P) / 2, py = 490;
+  const P = 520, px = (W - P) / 2, py = 400;
   ctx.drawImage(sepiaSquare(img, P), px, py);
   ctx.strokeStyle = "#2b251c";
   ctx.lineWidth = 5;
@@ -316,13 +316,13 @@ async function makePoster(p, number) {
   ctx.strokeRect(px - 12, py - 12, P + 24, P + 24);
 
   // details quote + meta
-  let y = py + P + 105;
+  let y = py + P + 75;
   if (p.details) {
-    for (const line of measureLines(`"${p.details}"`, "italic 400 44px", 840).slice(0, 4)) {
-      text(line, W / 2, y, "italic 400 44px", "#1e1a14");
-      y += 62;
+    for (const line of measureLines(`"${p.details}"`, "italic 400 40px", 860).slice(0, 3)) {
+      text(line, W / 2, y, "italic 400 40px", "#1e1a14");
+      y += 56;
     }
-    y += 18;
+    y += 14;
   }
   const date = new Date(p.uploaded).toLocaleDateString("ml-IN", { day: "numeric", month: "long", year: "numeric" });
   const metaLines = [];
@@ -330,16 +330,16 @@ async function makePoster(p, number) {
   if (p.reporter) metaLines.push(`സാക്ഷി: ${p.reporter}`);
   metaLines.push(date);
   for (const line of metaLines) {
-    for (const sub of measureLines(line, "600 44px", 840).slice(0, 2)) {
-      text(sub, W / 2, y, "600 44px", "#4a4238");
-      y += 60;
+    for (const sub of measureLines(line, "600 40px", 860).slice(0, 1)) {
+      text(sub, W / 2, y, "600 40px", "#4a4238");
+      y += 52;
     }
   }
 
   // footer with site link
-  rule(H - 240, 3);
-  text("നിങ്ങളും കണ്ടോ? തെളിവ് സമർപ്പിക്കുക", W / 2, H - 165, "600 40px", "#1e1a14");
-  text(SITE_LINK, W / 2, H - 95, "800 54px", "#7a1f1f");
+  rule(H - 190, 3);
+  text("നിങ്ങളും കണ്ടോ? തെളിവ് സമർപ്പിക്കുക", W / 2, H - 125, "600 38px", "#1e1a14");
+  text(SITE_LINK, W / 2, H - 62, "800 50px", "#7a1f1f");
 
   return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
 }
