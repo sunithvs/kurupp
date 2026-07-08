@@ -282,13 +282,15 @@ async function makePoster(p, number) {
   canvas.height = H;
   const ctx = canvas.getContext("2d");
 
-  // every text draw sets its full state; nothing depends on leftover ctx state
-  function text(str, x, y, font, color, align = "center") {
+  // center manually via measureText: iOS Safari ignores textAlign="center"
+  // for Malayalam shaping, so never rely on fillText alignment
+  function text(str, centerX, y, font, color) {
     ctx.font = `${font} ${POSTER_FONT}, serif`;
     ctx.fillStyle = color;
-    ctx.textAlign = align;
+    ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
-    ctx.fillText(str, x, y);
+    const w = ctx.measureText(str).width;
+    ctx.fillText(str, centerX - w / 2, y);
   }
   function measureLines(str, font, maxWidth) {
     ctx.font = `${font} ${POSTER_FONT}, serif`;
