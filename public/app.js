@@ -315,44 +315,39 @@ async function makePoster(p, number) {
     ctx.fillRect(0, 0, W, H);
   }
 
-  // double frame: solid outer, dashed inner
+  // single dashed frame
   ctx.strokeStyle = "#2b251c";
-  ctx.setLineDash([]);
-  ctx.lineWidth = 5;
-  ctx.strokeRect(45, 45, W - 90, H - 90);
   ctx.setLineDash([14, 10]);
-  ctx.lineWidth = 2;
-  ctx.strokeRect(72, 72, W - 144, H - 144);
+  ctx.lineWidth = 3;
+  ctx.strokeRect(36, 36, W - 72, H - 72);
   ctx.setLineDash([]);
 
   // masthead
-  text("കുറുപ്പ് ഉണ്ടോ?", W / 2, 150, "800 56px", "#1e1a14");
-  rule(182, 3);
-  rule(190, 3);
+  text("കുറുപ്പ് ഉണ്ടോ?", W / 2, 130, "800 56px", "#1e1a14");
+  rule(162, 3);
+  rule(170, 3);
 
   // evidence header
-  text(`തെളിവ് നം. ${number}`, W / 2, 262, "800 48px", "#7a1f1f");
-  text("ഇയാളെ കണ്ടിട്ടുണ്ടോ?", W / 2, 352, "800 64px", "#1e1a14");
+  text(`തെളിവ് നം. ${number}`, W / 2, 240, "800 46px", "#7a1f1f");
+  text("ഇയാളെ കണ്ടിട്ടുണ്ടോ?", W / 2, 324, "800 62px", "#1e1a14");
 
-  // photo, sepia, framed
+  // photo, sepia, single frame
   const img = await loadImage("/img/" + encodeURIComponent(p.key));
-  const P = 520, px = (W - P) / 2, py = 400;
+  const P = 500, px = (W - P) / 2, py = 366;
   ctx.drawImage(sepiaSquare(img, P), px, py);
   ctx.strokeStyle = "#2b251c";
-  ctx.lineWidth = 5;
+  ctx.lineWidth = 4;
   ctx.strokeRect(px, py, P, P);
-  ctx.lineWidth = 2;
-  ctx.strokeRect(px - 12, py - 12, P + 24, P + 24);
 
   // details quote + meta, clamped with ellipsis so nothing escapes the frame
-  let y = py + P + 75;
+  let y = py + P + 66;
   if (p.details) {
-    const quoteLines = clampLines(ctx, measureLines(`"${p.details}"`, "italic 400 40px", 860), 3, 860);
+    const quoteLines = clampLines(ctx, measureLines(`"${p.details}"`, "italic 400 40px", 900), 3, 900);
     for (const line of quoteLines) {
       text(line, W / 2, y, "italic 400 40px", "#1e1a14");
-      y += 56;
+      y += 54;
     }
-    y += 14;
+    y += 12;
   }
   const date = new Date(p.uploaded).toLocaleDateString("ml-IN", { day: "numeric", month: "long", year: "numeric" });
   const metaLines = [];
@@ -360,15 +355,15 @@ async function makePoster(p, number) {
   if (p.reporter) metaLines.push(`സാക്ഷി: ${p.reporter}`);
   metaLines.push(date);
   for (const line of metaLines) {
-    const [sub] = clampLines(ctx, measureLines(line, "600 40px", 860), 1, 860);
+    const [sub] = clampLines(ctx, measureLines(line, "600 40px", 900), 1, 900);
     text(sub, W / 2, y, "600 40px", "#4a4238");
-    y += 52;
+    y += 50;
   }
 
   // footer with site link
-  rule(H - 190, 3);
-  text("നിങ്ങളും കണ്ടോ? തെളിവ് സമർപ്പിക്കുക", W / 2, H - 125, "600 38px", "#1e1a14");
-  text(SITE_LINK, W / 2, H - 62, "800 50px", "#7a1f1f");
+  rule(H - 200, 3);
+  text("നിങ്ങളും കണ്ടോ? തെളിവ് സമർപ്പിക്കുക", W / 2, H - 135, "600 38px", "#1e1a14");
+  text(SITE_LINK, W / 2, H - 68, "800 50px", "#7a1f1f");
 
   return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
 }
