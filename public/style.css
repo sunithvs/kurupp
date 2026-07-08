@@ -402,9 +402,13 @@ body {
 .poster-preview {
   display: block;
   width: min(250px, 60vw);
+  max-width: 100%;
+  height: auto;
   margin: 0 auto 14px;
   box-shadow: 0 4px 14px rgba(0,0,0,.35);
 }
+
+.modal-card img { max-width: 100%; }
 
 .poster-card .modal-actions { flex-wrap: wrap; }
 .poster-card .btn { text-decoration: none; font-size: .9rem; padding: 9px 16px; }

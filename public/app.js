@@ -372,6 +372,10 @@ async function showPoster(p, number) {
   try {
     posterBlob = await makePoster(p, number);
     const url = URL.createObjectURL(posterBlob);
+    // inline sizing so a stale cached stylesheet can never blow the preview up to 1080px
+    posterPreview.style.width = "min(250px, 60vw)";
+    posterPreview.style.maxWidth = "100%";
+    posterPreview.style.height = "auto";
     posterPreview.src = url;
     posterDownloadBtn.href = url;
     posterDownloadBtn.download = `kurup-evidence-${number}.jpg`;
