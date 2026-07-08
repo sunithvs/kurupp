@@ -1,0 +1,16 @@
+{
+  "name": "kurup",
+  "account_id": "95b97c918d8d0077a8cfdc17525d8d2b",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-07-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "r2_buckets": [
+    {
+      "binding": "PHOTOS",
+      "bucket_name": "kurup-photos"
+    }
+  ]
+}
