@@ -169,12 +169,174 @@ publishBtn.addEventListener("click", async () => {
     document.getElementById("reporter").value = "";
     document.getElementById("location").value = "";
     document.getElementById("details").value = "";
-    await loadGallery();
-    document.querySelector(".gallery-section").scrollIntoView({ behavior: "smooth" });
+    const photos = await loadGallery();
+    if (photos.length) await showPoster(photos[0], photos.length);
   } catch (err) {
     statusEl.textContent = "പിശക്: " + err.message;
   } finally {
     publishBtn.disabled = false;
+  }
+});
+
+// ---------- Evidence poster (Instagram story 1080x1920) ----------
+const SITE_LINK = "kurup.radr.in";
+const posterModal = document.getElementById("poster-modal");
+const posterPreview = document.getElementById("poster-preview");
+const posterShareBtn = document.getElementById("poster-share-btn");
+const posterDownloadBtn = document.getElementById("poster-download-btn");
+let posterBlob = null;
+
+document.getElementById("poster-close-btn").addEventListener("click", () => {
+  posterModal.hidden = true;
+});
+
+function wrapText(ctx, text, maxWidth) {
+  const words = text.split(/\s+/);
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    const test = line ? line + " " + word : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+async function makePoster(p, number) {
+  await document.fonts.ready;
+  const W = 1080, H = 1920;
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  const serif = '"Noto Serif Malayalam", serif';
+
+  // aged paper background
+  ctx.fillStyle = "#e8ddc4";
+  ctx.fillRect(0, 0, W, H);
+  const stains = [[90, 120, 260, "rgba(120,85,40,.14)"], [1000, 1800, 320, "rgba(110,78,35,.16)"], [950, 260, 150, "rgba(122,84,36,.10)"], [160, 1700, 190, "rgba(120,85,40,.12)"]];
+  for (const [sx, sy, sr, color] of stains) {
+    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr);
+    g.addColorStop(0, color);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // double dashed frame
+  ctx.strokeStyle = "#2b251c";
+  ctx.lineWidth = 5;
+  ctx.strokeRect(45, 45, W - 90, H - 90);
+  ctx.setLineDash([14, 10]);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(72, 72, W - 144, H - 144);
+  ctx.setLineDash([]);
+
+  ctx.textAlign = "center";
+
+  // masthead
+  ctx.fillStyle = "#1e1a14";
+  ctx.font = `800 64px ${serif}`;
+  ctx.fillText("കുറുപ്പ് ഉണ്ടോ?", W / 2, 190);
+  ctx.strokeStyle = "#2b251c";
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(140, 225); ctx.lineTo(W - 140, 225); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(140, 233); ctx.lineTo(W - 140, 233); ctx.stroke();
+
+  // evidence header
+  ctx.fillStyle = "#7a1f1f";
+  ctx.font = `800 52px ${serif}`;
+  ctx.fillText(`തെളിവ് നം. ${number}`, W / 2, 320);
+  ctx.fillStyle = "#1e1a14";
+  ctx.font = `800 76px ${serif}`;
+  ctx.fillText("ഇയാളെ കണ്ടിട്ടുണ്ടോ?", W / 2, 425);
+
+  // photo, sepia, framed
+  const img = await loadImage("/img/" + encodeURIComponent(p.key));
+  const P = 720, px = (W - P) / 2, py = 490;
+  ctx.filter = "sepia(.35) contrast(1.05)";
+  ctx.drawImage(img, px, py, P, P);
+  ctx.filter = "none";
+  ctx.lineWidth = 5;
+  ctx.strokeRect(px, py, P, P);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(px - 12, py - 12, P + 24, P + 24);
+
+  // details quote + meta
+  let y = py + P + 105;
+  if (p.details) {
+    ctx.fillStyle = "#1e1a14";
+    ctx.font = `italic 44px ${serif}`;
+    for (const line of wrapText(ctx, `"${p.details}"`, 840).slice(0, 4)) {
+      ctx.fillText(line, W / 2, y);
+      y += 62;
+    }
+    y += 18;
+  }
+  ctx.font = `600 44px ${serif}`;
+  ctx.fillStyle = "#4a4238";
+  const date = new Date(p.uploaded).toLocaleDateString("ml-IN", { day: "numeric", month: "long", year: "numeric" });
+  const metaLines = [];
+  if (p.location) metaLines.push(`സ്ഥലം: ${p.location}`);
+  if (p.reporter) metaLines.push(`സാക്ഷി: ${p.reporter}`);
+  metaLines.push(date);
+  for (const line of metaLines) {
+    for (const sub of wrapText(ctx, line, 840).slice(0, 2)) {
+      ctx.fillText(sub, W / 2, y);
+      y += 60;
+    }
+  }
+
+  // footer with site link
+  ctx.strokeStyle = "#2b251c";
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(140, H - 240); ctx.lineTo(W - 140, H - 240); ctx.stroke();
+  ctx.fillStyle = "#1e1a14";
+  ctx.font = `600 40px ${serif}`;
+  ctx.fillText("നിങ്ങളും കണ്ടോ? തെളിവ് സമർപ്പിക്കുക", W / 2, H - 165);
+  ctx.fillStyle = "#7a1f1f";
+  ctx.font = `800 54px ${serif}`;
+  ctx.fillText(SITE_LINK, W / 2, H - 95);
+
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+}
+
+async function showPoster(p, number) {
+  try {
+    posterBlob = await makePoster(p, number);
+    const url = URL.createObjectURL(posterBlob);
+    posterPreview.src = url;
+    posterDownloadBtn.href = url;
+    posterDownloadBtn.download = `kurup-evidence-${number}.jpg`;
+    posterModal.hidden = false;
+  } catch (err) {
+    alert("പോസ്റ്റർ ഉണ്ടാക്കാനായില്ല: " + err.message);
+  }
+}
+
+posterShareBtn.addEventListener("click", async () => {
+  if (!posterBlob) return;
+  const file = new File([posterBlob], "kurup-evidence.jpg", { type: "image/jpeg" });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], text: `നിങ്ങൾ സുകുമാരക്കുറുപ്പിനെ കണ്ടിട്ടുണ്ടോ? https://${SITE_LINK}` });
+    } catch { /* user cancelled */ }
+  } else {
+    posterDownloadBtn.click();
   }
 });
 
@@ -185,6 +347,16 @@ async function loadGallery() {
     const { photos } = await res.json();
     gallery.innerHTML = "";
     galleryEmpty.hidden = photos.length > 0;
+    renderGallery(photos);
+    return photos;
+  } catch {
+    galleryEmpty.hidden = false;
+    galleryEmpty.textContent = "റിപ്പോർട്ടുകൾ ലഭ്യമല്ല. പിന്നീട് ശ്രമിക്കുക.";
+    return [];
+  }
+}
+
+function renderGallery(photos) {
 
     photos.forEach((p, i) => {
       const card = document.createElement("article");
@@ -207,13 +379,15 @@ async function loadGallery() {
       const rep = p.reporter ? `<strong>സാക്ഷി:</strong> ${escapeHtml(p.reporter)}<br>` : "";
       meta.innerHTML = `${det}${loc}${rep}${date}`;
 
-      card.append(label, img, meta);
+      const posterBtn = document.createElement("button");
+      posterBtn.className = "notice-poster-btn";
+      posterBtn.type = "button";
+      posterBtn.textContent = "🗞️ പോസ്റ്റർ";
+      posterBtn.addEventListener("click", () => showPoster(p, photos.length - i));
+
+      card.append(label, img, meta, posterBtn);
       gallery.appendChild(card);
-    });
-  } catch {
-    galleryEmpty.hidden = false;
-    galleryEmpty.textContent = "റിപ്പോർട്ടുകൾ ലഭ്യമല്ല. പിന്നീട് ശ്രമിക്കുക.";
-  }
+  });
 }
 
 function escapeHtml(s) {
